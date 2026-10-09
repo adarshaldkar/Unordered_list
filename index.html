@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduMark Pro — Institutional Examination & Marks Management System</title>
+  <meta name="description" content="Intelligent school mark sheet management system with automated Excel reordering, grade computation, rank calculation, and printable report cards.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- SheetJS for Client-Side Excel Parsing & Generation -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Canvas Confetti for Celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <img src="assets/school_logo.jpg" alt="St. Andrew's Academy Logo" class="school-header-logo">
+      <div class="school-branding">
+        <h1 class="school-title">St. Andrew's Academy</h1>
+        <p class="system-subtitle"><span class="badge-tag">EduMark Pro v2.4</span> Institutional Exam & Marks Management Portal</p>
+      </div>
+    </div>
+    
+    <div class="header-right">
+      <!-- Academic Period Selectors -->
+      <div class="meta-selector">
+        <label for="academicYearSelect"><i class="fa-regular fa-calendar"></i> Year</label>
+        <select id="academicYearSelect">
+          <option value="2024-2025" selected>2024 - 2025</option>
+          <option value="2025-2026">2025 - 2026</option>
+        </select>
+      </div>
+      
+      <div class="meta-selector">
+        <label for="examSelect"><i class="fa-solid fa-file-pen"></i> Exam</label>
+        <select id="examSelect">
+          <option value="Annual Exam" selected>Annual Exam</option>
+          <option value="Half-Yearly">Half-Yearly Exam</option>
+          <option value="Quarterly">Quarterly Exam</option>
+          <option value="Unit Test 1">Unit Test 1</option>
+          <option value="Unit Test 2">Unit Test 2</option>
+        </select>
+      </div>
+
+      <!-- User Role Simulator -->
+      <div class="user-role-badge" id="roleBadge">
+        <i class="fa-solid fa-user-shield"></i>
+        <span id="currentRoleText">Exam Controller (Admin)</span>
+      </div>
+
+      <!-- Mark Locking Indicator Button -->
+      <button class="btn btn-lock-toggle" id="lockStatusBtn" title="Toggle Mark Locking">
+        <i class="fa-solid fa-lock-open" id="lockIcon"></i>
+        <span id="lockStatusLabel">Marks Unlocked</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">
+    
+    <!-- Hero / Smart Excel Ingestion Banner -->
+    <section class="ingestion-section">
+      <div class="ingestion-card">
+        <div class="ingestion-info">
+          <div class="magic-pill">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Smart Unordered Excel Normalizer
+          </div>
+          <h2>Upload Any Unordered Excel Sheet</h2>
+          <p>Clients often supply messy sheets with scrambled columns (e.g. <em>Science</em> before <em>Tamil</em>) and randomized rows. Our intelligent engine instantly detects columns, reorganizes subjects into the official sequence, computes grades, totals, ranks, and pass/fail status!</p>
+          
+          <div class="quick-action-buttons">
+            <button class="btn btn-primary" id="demoLoadBtn">
+              <i class="fa-solid fa-bolt"></i> 1-Click Load Unordered Demo Data
+            </button>
+            <button class="btn btn-secondary" id="downloadSampleExcelBtn">
+              <i class="fa-solid fa-file-excel"></i> Download Sample Unordered .xlsx
+            </button>
+            <button class="btn btn-outline" id="subjectMgmtBtn">
+              <i class="fa-solid fa-sliders"></i> Subject & Max Marks Rules
+            </button>
+          </div>
+        </div>
+
+        <!-- Drag & Drop Upload Zone -->
+        <div class="dropzone" id="dropZone">
+          <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" hidden>
+          <div class="dropzone-content">
+            <div class="dropzone-icon">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <h4>Drop Unordered Excel Sheet Here</h4>
+            <p>Supports .xlsx, .xls, or .csv files</p>
+            <button class="btn btn-sm btn-browse" onclick="document.getElementById('excelFileInput').click()">
+              <i class="fa-regular fa-folder-open"></i> Browse Files
+            </button>
+            <div class="dropzone-status" id="fileStatusText">Ready for file upload</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Key Performance Overview Cards -->
+    <section class="stats-overview" id="statsSection">
+      <div class="stat-card">
+        <div class="stat-icon-wrapper blue">
+          <i class="fa-solid fa-users"></i>
+        </div>
+        <div class="stat-meta">
+          <span class="stat-title">Total Students</span>
+          <h3 class="stat-value" id="statTotalStudents">0</h3>
+          <span class="stat-sub" id="statClassesInfo">Class 10 (Sec A & B)</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper green">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div class="stat-meta">
+          <span class="stat-title">Passed Students</span>
+          <h3 class="stat-value" id="statPassed">0</h3>
+          <span class="stat-sub text-success" id="statPassRate">Pass Rate: 0%</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper red">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+        <div class="stat-meta">
+          <span class="stat-title">Failed / Backlogs</span>
+          <h3 class="stat-value" id="statFailed">0</h3>
+          <span class="stat-sub text-danger" id="statMinMarksHint">Min Pass Mark: 35</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper purple">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <div class="stat-meta">
+          <span class="stat-title">Class Average</span>
+          <h3 class="stat-value" id="statClassAvg">0.0%</h3>
+          <span class="stat-sub">Across 5 Subjects</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon-wrapper gold">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <div class="stat-meta">
+          <span class="stat-title">Class Topper</span>
+          <h3 class="stat-value" id="statTopperName">—</h3>
+          <span class="stat-sub" id="statTopperScore">Score: —</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Data Controls, Filters & Actions Toolbar -->
+    <section class="table-management-card">
+      <div class="toolbar-header">
+        <div class="toolbar-left">
+          <div class="section-badge">
+            <i class="fa-solid fa-table-list"></i> Normalized Standard Master Marksheet
+          </div>
+          <p class="toolbar-caption">Auto-ordered sequence: <strong>1. Tamil &rarr; 2. English &rarr; 3. Mathematics &rarr; 4. Science &rarr; 5. Social Science</strong></p>
+        </div>
+
+        <div class="toolbar-actions">
+          <button class="btn btn-action-excel" id="exportOrderedExcelBtn">
+            <i class="fa-solid fa-file-arrow-down"></i> Export Ordered Excel (.xlsx)
+          </button>
+          <button class="btn btn-action-batch" id="batchPrintBtn">
+            <i class="fa-solid fa-print"></i> Print All Report Cards
+          </button>
+          <button class="btn btn-action-add" id="addStudentBtn">
+            <i class="fa-solid fa-user-plus"></i> Add Student
+          </button>
+        </div>
+      </div>
+
+      <!-- Filters & Search Bar -->
+      <div class="filter-bar">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" id="searchInput" placeholder="Search by Student Name, Admission No...">
+          <button class="clear-search-btn" id="clearSearchBtn" style="display: none;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="filter-controls">
+          <div class="filter-item">
+            <label for="filterClass">Class:</label>
+            <select id="filterClass">
+              <option value="ALL">All Classes</option>
+              <option value="10">Class 10</option>
+              <option value="9">Class 9</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label for="filterSection">Section:</label>
+            <select id="filterSection">
+              <option value="ALL">All Sections</option>
+              <option value="A">Section A</option>
+              <option value="B">Section B</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label for="filterStatus">Result:</label>
+            <select id="filterStatus">
+              <option value="ALL">All Results</option>
+              <option value="PASS">Passed Only</option>
+              <option value="FAIL">Failed Only</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label for="sortBySelect">Sort By:</label>
+            <select id="sortBySelect">
+              <option value="rank-asc">Rank (1st to Last)</option>
+              <option value="adm-asc">Admission No (Asc)</option>
+              <option value="name-asc">Student Name (A-Z)</option>
+              <option value="total-desc">Total Marks (High to Low)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active View Comparison Tab -->
+      <div class="view-mode-tabs">
+        <button class="tab-btn active" id="tabStandardView">
+          <i class="fa-solid fa-check-double"></i> Standard Ordered & Calculated View
+        </button>
+        <button class="tab-btn" id="tabRawView">
+          <i class="fa-solid fa-shuffle"></i> Raw Unordered Source Preview
+        </button>
+      </div>
+
+      <!-- Master Marks Table View -->
+      <div class="table-container" id="standardTableView">
+        <table class="marks-table" id="marksMasterTable">
+          <thead>
+            <tr>
+              <th class="col-rank">Rank</th>
+              <th class="col-adm">Adm No</th>
+              <th class="col-name">Student Name</th>
+              <th class="col-class">Class</th>
+              <th class="col-sec">Sec</th>
+              
+              <!-- Standard Subject Columns -->
+              <th class="col-subject" title="Max: 100 | Min Pass: 35">Tamil (100)</th>
+              <th class="col-subject" title="Max: 100 | Min Pass: 35">English (100)</th>
+              <th class="col-subject" title="Max: 100 | Min Pass: 35">Mathematics (100)</th>
+              <th class="col-subject" title="Max: 100 | Min Pass: 35">Science (100)</th>
+              <th class="col-subject" title="Max: 100 | Min Pass: 35">Social Science (100)</th>
+              
+              <th class="col-total">Total (500)</th>
+              <th class="col-pct">%</th>
+              <th class="col-grade">Grade</th>
+              <th class="col-status">Result</th>
+              <th class="col-remarks">Teacher Remarks</th>
+              <th class="col-actions text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="marksTableBody">
+            <!-- Dynamically populated via app.js -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Raw Unordered Source Table Preview -->
+      <div class="table-container" id="rawTableView" style="display: none;">
+        <div class="raw-notice">
+          <i class="fa-solid fa-circle-info"></i>
+          This shows how the Excel was originally uploaded before EduMark Pro reorganized it. Notice the scrambled column positions and unsorted rows!
+        </div>
+        <table class="marks-table raw-table" id="rawMasterTable">
+          <thead id="rawTableHead">
+            <!-- Dynamically populated -->
+          </thead>
+          <tbody id="rawTableBody">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Empty State Indicator -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <i class="fa-solid fa-folder-open"></i>
+        <h3>No Marks Data Available</h3>
+        <p>Upload an unordered Excel sheet or click the button below to load sample demo data instantly.</p>
+        <button class="btn btn-primary" onclick="document.getElementById('demoLoadBtn').click()">
+          <i class="fa-solid fa-bolt"></i> Load Sample Data
+        </button>
+      </div>
+
+      <div class="table-footer">
+        <div class="table-footer-info">
+          Showing <span id="visibleStudentsCount">0</span> of <span id="totalStudentsCount">0</span> students
+        </div>
+        <div class="table-legend">
+          <span class="legend-item"><span class="badge badge-pass">PASS</span> &ge; 35 in all subjects</span>
+          <span class="legend-item"><span class="badge badge-fail">FAIL</span> &lt; 35 in any subject</span>
+          <span class="legend-item"><i class="fa-solid fa-lock text-muted"></i> Mark Locking active prevents modifications</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Class-Wise Performance Insights & Top Performers -->
+    <section class="performance-insights-grid">
+      <!-- Subject-Wise Pass Analysis Card -->
+      <div class="insight-card">
+        <div class="card-title">
+          <i class="fa-solid fa-chart-column"></i> Subject-Wise Pass Analysis
+        </div>
+        <div class="subject-bars" id="subjectAnalyticsBars">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Grading Scale Reference Card -->
+      <div class="insight-card">
+        <div class="card-title">
+          <i class="fa-solid fa-scale-balanced"></i> Institutional Grading Scale
+        </div>
+        <div class="grade-scale-table-wrap">
+          <table class="mini-grade-table">
+            <thead>
+              <tr><th>Grade</th><th>Percentage Range</th><th>Classification</th><th>Points</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><span class="badge-grade grade-a-plus">A+</span></td><td>91% – 100%</td><td>Outstanding</td><td>10.0</td></tr>
+              <tr><td><span class="badge-grade grade-a">A</span></td><td>81% – 90%</td><td>Excellent</td><td>9.0</td></tr>
+              <tr><td><span class="badge-grade grade-b-plus">B+</span></td><td>71% – 80%</td><td>Very Good</td><td>8.0</td></tr>
+              <tr><td><span class="badge-grade grade-b">B</span></td><td>61% – 70%</td><td>Good</td><td>7.0</td></tr>
+              <tr><td><span class="badge-grade grade-c">C</span></td><td>50% – 60%</td><td>Satisfactory</td><td>6.0</td></tr>
+              <tr><td><span class="badge-grade grade-d">D</span></td><td>35% – 49%</td><td>Pass Threshold</td><td>5.0</td></tr>
+              <tr><td><span class="badge-grade grade-f">F</span></td><td>Below 35%</td><td>Needs Improvement</td><td>0.0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Student Official Report Card (Print & Download Ready) -->
+  <div class="modal-overlay" id="reportCardModal">
+    <div class="modal-dialog report-card-dialog">
+      <div class="modal-header no-print">
+        <div class="modal-title">
+          <i class="fa-solid fa-id-card"></i> Student Official Report Card
+        </div>
+        <div class="modal-header-actions">
+          <button class="btn btn-primary btn-sm" id="printReportCardBtn">
+            <i class="fa-solid fa-print"></i> Print / Save as PDF
+          </button>
+          <button class="btn btn-secondary btn-sm" id="closeReportCardModal">
+            <i class="fa-solid fa-xmark"></i> Close
+          </button>
+        </div>
+      </div>
+
+      <!-- Printable Report Card Canvas -->
+      <div class="printable-card" id="printableCardCanvas">
+        <div class="report-card-border">
+          
+          <!-- School Official Header -->
+          <div class="rc-header">
+            <img src="assets/school_logo.jpg" alt="School Emblem" class="rc-logo">
+            <div class="rc-school-info">
+              <h2 class="rc-school-name">ST. ANDREW'S ACADEMY</h2>
+              <p class="rc-school-sub">Affiliated to State Board of Secondary Education • Reg No: TN-CHE-2983</p>
+              <p class="rc-school-addr">College Road, Anna Salai, Chennai, Tamil Nadu — 600006</p>
+              <div class="rc-title-ribbon">PROGRESS & PERFORMANCE REPORT CARD (2024-2025)</div>
+            </div>
+          </div>
+
+          <!-- Student Meta Grid -->
+          <div class="rc-student-details-grid">
+            <div class="rc-detail-item">
+              <span class="rc-label">Student Name:</span>
+              <strong class="rc-value" id="rcStudentName">—</strong>
+            </div>
+            <div class="rc-detail-item">
+              <span class="rc-label">Admission No:</span>
+              <strong class="rc-value" id="rcAdmissionNo">—</strong>
+            </div>
+            <div class="rc-detail-item">
+              <span class="rc-label">Class & Section:</span>
+              <strong class="rc-value" id="rcClassSection">—</strong>
+            </div>
+            <div class="rc-detail-item">
+              <span class="rc-label">Academic Year:</span>
+              <strong class="rc-value" id="rcAcademicYear">2024 - 2025</strong>
+            </div>
+            <div class="rc-detail-item">
+              <span class="rc-label">Examination:</span>
+              <strong class="rc-value" id="rcExamName">Annual Examination</strong>
+            </div>
+            <div class="rc-detail-item">
+              <span class="rc-label">Class Rank:</span>
+              <strong class="rc-value text-primary" id="rcRank">—</strong>
+            </div>
+          </div>
+
+          <!-- Exact Table Matching User Specification -->
+          <div class="rc-marks-table-wrap">
+            <table class="rc-table">
+              <thead>
+                <tr>
+                  <th style="text-align: left;">Subject</th>
+                  <th style="text-align: right;">Max Marks</th>
+                  <th style="text-align: right;">Obtained</th>
+                  <th style="text-align: center;">Grade</th>
+                </tr>
+              </thead>
+              <tbody id="rcMarksTableBody">
+                <!-- Populated dynamically -->
+              </tbody>
+              <tfoot id="rcMarksTableFoot">
+                <!-- Total Row -->
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Summary Badges & Performance Remarks -->
+          <div class="rc-summary-section">
+            <div class="rc-summary-box">
+              <div class="rc-sum-item">
+                <span class="sum-title">Overall Percentage</span>
+                <span class="sum-value" id="rcPercentage">0%</span>
+              </div>
+              <div class="rc-sum-item">
+                <span class="sum-title">Final Result</span>
+                <span class="sum-value" id="rcResultStatus">PASS</span>
+              </div>
+              <div class="rc-sum-item">
+                <span class="sum-title">Overall Grade</span>
+                <span class="sum-value" id="rcOverallGrade">A</span>
+              </div>
+            </div>
+
+            <div class="rc-remarks-box">
+              <span class="rc-label">Teacher's Evaluation & Remarks:</span>
+              <p class="rc-teacher-remarks" id="rcRemarksText">Very attentive, disciplined and consistent performance.</p>
+            </div>
+          </div>
+
+          <!-- Official Signatures -->
+          <div class="rc-signatures">
+            <div class="rc-sig-item">
+              <div class="sig-line"></div>
+              <span>Class Teacher</span>
+            </div>
+            <div class="rc-sig-item">
+              <div class="sig-line"></div>
+              <span>Exam Coordinator</span>
+            </div>
+            <div class="rc-sig-item">
+              <div class="sig-seal">
+                <i class="fa-solid fa-stamp"></i> OFFICIAL SEAL
+              </div>
+              <div class="sig-line"></div>
+              <span>Principal</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Edit Student Marks -->
+  <div class="modal-overlay" id="editMarksModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-pen-to-square"></i> Edit Marks — <span id="editStudentName">Student</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="closeEditModalBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="editMarksForm">
+          <input type="hidden" id="editStudentId">
+          
+          <div class="form-row">
+            <div class="form-group">
+              <label>Admission No</label>
+              <input type="text" id="editAdmNo" disabled class="form-control-disabled">
+            </div>
+            <div class="form-group">
+              <label>Class & Section</label>
+              <input type="text" id="editClassSec" disabled class="form-control-disabled">
+            </div>
+          </div>
+
+          <div class="edit-subject-inputs-grid" id="editSubjectsContainer">
+            <!-- Dynamic subject input fields -->
+          </div>
+
+          <div class="form-group mt-3">
+            <label for="editRemarks">Teacher Remarks</label>
+            <textarea id="editRemarks" class="form-control" rows="2" placeholder="Enter custom remarks..."></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelEditBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="saveMarksBtn">
+              <i class="fa-solid fa-floppy-disk"></i> Save & Recalculate
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add New Student -->
+  <div class="modal-overlay" id="addStudentModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-user-plus"></i> Add New Student & Marks
+        </div>
+        <button class="btn btn-secondary btn-sm" id="closeAddStudentModalBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <form id="addStudentForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="newAdmNo">Admission No *</label>
+              <input type="text" id="newAdmNo" class="form-control" required placeholder="e.g. ADM-2024-015">
+            </div>
+            <div class="form-group">
+              <label for="newName">Student Name *</label>
+              <input type="text" id="newName" class="form-control" required placeholder="e.g. Priya Sharma">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="newClass">Class</label>
+              <select id="newClass" class="form-control">
+                <option value="10" selected>10</option>
+                <option value="9">9</option>
+                <option value="8">8</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="newSection">Section</label>
+              <select id="newSection" class="form-control">
+                <option value="A" selected>A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
+          </div>
+
+          <h4 class="form-section-title">Enter Subject Marks (Max: 100 | Pass: 35)</h4>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Tamil</label>
+              <input type="number" id="newMarkTamil" class="form-control" min="0" max="100" value="75" required>
+            </div>
+            <div class="form-group">
+              <label>English</label>
+              <input type="number" id="newMarkEnglish" class="form-control" min="0" max="100" value="80" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Mathematics</label>
+              <input type="number" id="newMarkMaths" class="form-control" min="0" max="100" value="85" required>
+            </div>
+            <div class="form-group">
+              <label>Science</label>
+              <input type="number" id="newMarkScience" class="form-control" min="0" max="100" value="78" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Social Science</label>
+              <input type="number" id="newMarkSocial" class="form-control" min="0" max="100" value="72" required>
+            </div>
+            <div class="form-group">
+              <label>Teacher Remarks</label>
+              <input type="text" id="newRemarks" class="form-control" placeholder="Optional notes...">
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="cancelAddStudentBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-check"></i> Add Student
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Subject & Exam Management Rules -->
+  <div class="modal-overlay" id="subjectMgmtModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-sliders"></i> Curriculum & Subject Management
+        </div>
+        <button class="btn btn-secondary btn-sm" id="closeSubjectModalBtn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Configure subjects, default display order, and passing thresholds.</p>
+        
+        <table class="rules-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Subject Name</th>
+              <th>Max Marks</th>
+              <th>Pass Mark</th>
+              <th>Type</th>
+            </tr>
+          </thead>
+          <tbody id="subjectRulesList">
+            <tr><td>1</td><td>Tamil (First Language)</td><td>100</td><td>35</td><td><span class="badge-tag">Language</span></td></tr>
+            <tr><td>2</td><td>English (Second Language)</td><td>100</td><td>35</td><td><span class="badge-tag">Language</span></td></tr>
+            <tr><td>3</td><td>Mathematics</td><td>100</td><td>35</td><td><span class="badge-tag">Core STEM</span></td></tr>
+            <tr><td>4</td><td>Science</td><td>100</td><td>35</td><td><span class="badge-tag">Core STEM</span></td></tr>
+            <tr><td>5</td><td>Social Science</td><td>100</td><td>35</td><td><span class="badge-tag">Social Sciences</span></td></tr>
+          </tbody>
+        </table>
+
+        <div class="rule-box mt-3">
+          <strong><i class="fa-solid fa-circle-check text-success"></i> Normalization Policy:</strong>
+          Any uploaded sheet will automatically map matched headers to this exact sequence (1 through 5) regardless of row or column order in the source Excel file.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="closeSubjectModalFooterBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>
